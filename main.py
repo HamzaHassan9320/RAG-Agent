@@ -10,6 +10,7 @@ from llama_index.core.query_pipeline import QueryPipeline
 import ast
 from tools.code_reader import code_reader
 from tools.git_analyser import git_analyser_tool
+from tools.extractors import extract_docx, extract_html, extract_markdown
 from prompts import context, code_parser_template
 from dotenv import load_dotenv
 
@@ -17,9 +18,13 @@ load_dotenv()
 
 llm = Ollama(model="llama3.2:3b-instruct-q6_K", request_timeout=500)
 
-parser = LlamaParse(result_type= "text")
+pdf_parser = LlamaParse(result_type= "text")
 
-file_extractor = {".pdf": parser}
+file_extractor = {".pdf": pdf_parser,
+                  ".docx": lambda file: LlamaParse(result_type="text").parse(extract_docx(file)),
+                  ".html": lambda file: LlamaParse(result_type="text").parse(extract_html(file)),
+                  ".md": lambda file: LlamaParse(result_type= "text").parse(extract_markdown(file))
+                  }
 
 documents = SimpleDirectoryReader("./data", file_extractor = file_extractor).load_data()
 
