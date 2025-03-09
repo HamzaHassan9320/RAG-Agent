@@ -3,10 +3,15 @@
 from llama_index.llms.ollama import Ollama
 
 def explain_code(code_snippet: str) -> str:
-
-    """ Uses an LLM to generate an explanation """
-
+    print("[DEBUG] Running explain_code with code snippet")
+    
     llm = Ollama(model="llama3.2:3b-instruct-q6_K", request_timeout=500)
     prompt = f"Explain the following code snippet in simple terms: \n\n{code_snippet}"
-    explanation =llm(prompt)
+    
+    print("[DEBUG] Prompt sent to LLM")
+    
+    explanation = llm.complete(prompt)
+    
+    print("[DEBUG] Explanation returned from LLM")
+    
     return explanation
