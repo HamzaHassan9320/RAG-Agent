@@ -27,3 +27,15 @@ This project uses [Poetry](https://python-poetry.org/) for dependency management
    ```bash
    git clone https://github.com/your-username/rag-agent.git
    cd rag-agent
+   
+2. **Install Dependencies:**
+   
+   ```bash
+   poetry install
+   
+## Usage
+
+To run the RAG agent, execute:
+
+  ```bash
+  poetry run python main.py
