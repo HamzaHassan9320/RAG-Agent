@@ -124,6 +124,7 @@ uvicorn = "0.29.0"
 wrapt = "1.16.0"
 yarl = "1.9.4"
 python-docx = "^1.1.2"
+streamlit = "^1.43.1"
 
 
 [build-system]
