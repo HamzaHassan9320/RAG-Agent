@@ -3,6 +3,7 @@
 import streamlit as st
 from tools.code_reader import code_reader_func
 from tools.git_analyser import git_query
+from tools.code_quality import run_pylint
 from dotenv import load_dotenv
 
 # Load environment variables for proper configuration.
@@ -33,7 +34,6 @@ if mode == "Code Analysis":
         else:
             explanation_text = explanation_response
         st.write(explanation_text)
-
 
 elif mode == "Git Analysis":
     st.header("Git Commit Analysis")

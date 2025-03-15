@@ -9,6 +9,7 @@ from llama_index.core.output_parsers import PydanticOutputParser
 from llama_index.core.query_pipeline import QueryPipeline
 import ast
 from tools.code_reader import code_reader
+from tools.code_quality import code_quality_tool
 from tools.git_analyser import git_analyser_tool
 from tools.extractors import extract_docx, extract_html, extract_markdown
 from prompts import context, code_parser_template
@@ -44,6 +45,7 @@ tools = [
     ),
     code_reader,
     git_analyser_tool,
+    code_quality_tool,
 ]
 
 from llama_index.core.agent.react.output_parser import ReActOutputParser
