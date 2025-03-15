@@ -1,56 +1,46 @@
+# tools/git_history_loader.py
+
 import os
 from git import Repo
 import shutil
 import stat
 from datetime import datetime
-from llama_index.core.schema import TextNode
 
-def get_commit_history(repo_path: str, branch: str = "master", limit: int = 100):
+def extract_commit_history(repo_path: str, branch: str = "master", limit: int = 100):
     """
-    Fetch commit history from a Git repository.
-    Returns a list of commit dictionaries with commit hash, author, date, and message.
+    Extract commit history from a Git repository, including diffs.
+    Returns a list of dictionaries with commit hash, author, date, message, and diff.
     """
     if not os.path.exists(repo_path):
         raise FileNotFoundError("Repository not found at: " + repo_path)
     
     repo = Repo(repo_path)
+    if branch is None:
+        branch = get_default_branch(repo)
     commits = list(repo.iter_commits(branch, max_count=limit))
     commit_docs = []
     for commit in commits:
         commit_date = datetime.fromtimestamp(commit.committed_date).isoformat()
-        commit_doc = {
+        # Extract diff if possible (compare to first parent)
+        if commit.parents:
+            diff_items = commit.diff(commit.parents[0], create_patch=True)
+            diff_text = "\n".join([item.diff.decode("utf-8", errors="ignore") for item in diff_items])
+        else:
+            diff_text = "Initial commit - no diff available."
+        
+        commit_docs.append({
             "commit_hash": commit.hexsha,
             "author": commit.author.name,
             "date": commit_date,
-            "message": commit.message.strip()
-        }
-        commit_docs.append(commit_doc)
+            "message": commit.message.strip(),
+            "diff": diff_text
+        })
     return commit_docs
 
-def create_commit_nodes(commit_docs):
-    """
-    Convert commit dictionaries into LlamaIndex TextNodes.
-    Each node includes time-based metadata for filtering.
-    """
-    nodes = []
-    for commit in commit_docs:
-        content = (f"Commit {commit['commit_hash']} by {commit['author']} on {commit['date']}:\n"
-                   f"{commit['message']}")
-        commit_datetime = datetime.fromisoformat(commit['date'])
-        node = CommitTextNode(
-            text=content,
-            metadata={
-                "commit_hash": commit['commit_hash'],
-                "author": commit['author'],
-                "__start_date": commit_datetime.isoformat(),
-                "__end_date": commit_datetime.isoformat()
-            },
-            id_=commit['commit_hash']
-        )
-        nodes.append(node)
-    return nodes
-
 def clone_repo(repo_url: str, clone_path: str = "./temp_repo"):
+    """
+    Clone the repository from the given URL to a local path.
+    """
     if os.path.exists(clone_path):
         make_writable(clone_path)
         shutil.rmtree(clone_path)
@@ -58,11 +48,18 @@ def clone_repo(repo_url: str, clone_path: str = "./temp_repo"):
     return clone_path
 
 def make_writable(path):
+    """
+    Recursively change file permissions to writable.
+    """
+    import os, stat
     for root, dirs, files in os.walk(path):
         for name in files:
             full_path = os.path.join(root, name)
             os.chmod(full_path, stat.S_IWRITE)
 
-class CommitTextNode(TextNode):
-    def get_doc_id(self):
-        return self.id_
+def get_default_branch(repo):
+    try:
+        return repo.active_branch.name
+    except TypeError:
+        # Fallback if in a detached HEAD state:
+        return repo.git.symbolic_ref("HEAD").split('/')[-1]

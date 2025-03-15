@@ -1,16 +1,7 @@
-# Ignore environment variable files
 .env
-
-# Ignore local virtual environments
 .env/
 .venv/
-
-# Other common ignores
 __pycache__/
-*.py[cod]
 *.log
-.DS_Store
-Thumbs.db
-
 data/
 temp_repo/
