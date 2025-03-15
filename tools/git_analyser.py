@@ -3,7 +3,7 @@ from llama_index.core.embeddings import resolve_embed_model
 from llama_index.core import VectorStoreIndex
 from llama_index.core.tools import FunctionTool
 
-from tools.git_history_loader import get_commit_history, create_commit_nodes
+from tools.git_history_loader import get_commit_history, create_commit_nodes, clone_repo
 
 def create_git_commit_index(repo_path: str, branch: str = "master", limit: int = 100, embed_model_str="local:BAAI/bge-m3"):
     """
@@ -15,11 +15,13 @@ def create_git_commit_index(repo_path: str, branch: str = "master", limit: int =
     git_index = VectorStoreIndex.from_documents(nodes, embed_model=embed_model)
     return git_index
 
-def git_query(query: str, start_date: str = None, end_date: str = None, repo_path: str = "./my_repo", branch: str = "master", limit: int = 100):
+def git_query(query: str, start_date: str = None, end_date: str = None, repo_path: str = "./my_repo", branch: str = "master", limit: int = 100, repo_url: str=None):
     """
     Query the Git commit index with optional time filters.
     This function builds the index on the fly (or you can persist it) and then runs a query.
     """
+    if repo_url:
+        repo_path = clone_repo(repo_url, "./temp_repo")
     # Build the Git commit index from your repository
     git_index = create_git_commit_index(repo_path, branch, limit)
     

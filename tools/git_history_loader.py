@@ -46,3 +46,10 @@ def create_commit_nodes(commit_docs):
         )
         nodes.append(node)
     return nodes
+
+def clone_repo(repo_url: str, clone_path: str = "./temp_repo"):
+    if os.path.exists(clone_path):
+        pass
+    else:
+        Repo.clone_from(repo_url, clone_path)
+    return clone_path
