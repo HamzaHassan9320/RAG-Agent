@@ -1,3 +1,4 @@
+# agent_setup.py
 from llama_index.llms.ollama import Ollama
 from llama_parse import LlamaParse
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, PromptTemplate
@@ -18,27 +19,24 @@ from dotenv import load_dotenv
 load_dotenv()
 
 llm = Ollama(model="llama3.2:3b-instruct-q6_K", request_timeout=500)
-
 pdf_parser = LlamaParse(result_type= "text")
 
-file_extractor = {".pdf": pdf_parser,
-                  ".docx": lambda file: LlamaParse(result_type="text").parse(extract_docx(file)),
-                  ".html": lambda file: LlamaParse(result_type="text").parse(extract_html(file)),
-                  ".md": lambda file: LlamaParse(result_type= "text").parse(extract_markdown(file))
-                  }
+file_extractor = {
+    ".pdf": pdf_parser,
+    ".docx": lambda file: LlamaParse(result_type="text").parse(extract_docx(file)),
+    ".html": lambda file: LlamaParse(result_type="text").parse(extract_html(file)),
+    ".md": lambda file: LlamaParse(result_type="text").parse(extract_markdown(file))
+}
 
-documents = SimpleDirectoryReader("./data", file_extractor = file_extractor).load_data()
-
+documents = SimpleDirectoryReader("./data", file_extractor=file_extractor).load_data()
 embed_model = resolve_embed_model("local:BAAI/bge-m3")
-
 vector_index = VectorStoreIndex.from_documents(documents, embed_model=embed_model)
-
 query_engine = vector_index.as_query_engine(llm=llm)
 
 tools = [
     QueryEngineTool(
         query_engine=query_engine,
-        metadata = ToolMetadata(
+        metadata=ToolMetadata(
             name="ResumeReviewer",
             description="Provides general professional experience information."
         ),
@@ -56,7 +54,6 @@ class CustomReActOutputParser(ReActOutputParser):
             return super().parse(output, is_streaming)
         except ValueError as e:
             if "Action: None" in output:
-                # Handle the case gracefully
                 return {
                     "reasoning": "The agent concluded no action was needed.",
                     "response": output.split("Observation:")[1].strip() if "Observation:" in output else "No additional observations provided.",
@@ -64,27 +61,10 @@ class CustomReActOutputParser(ReActOutputParser):
             raise e
 
 code_llm = Ollama(model="llama3.2:3b-instruct-q6_K", request_timeout=500)
-agent = ReActAgent.from_tools(tools, llm=code_llm, verbose=True,output_parser=CustomReActOutputParser(), context=context)
+agent = ReActAgent.from_tools(tools, llm=code_llm, verbose=True, output_parser=CustomReActOutputParser(), context=context)
 
-class CodeOutput(BaseModel):
-    information: str
-    description: str
-    filename: str
-
-parser = PydanticOutputParser(CodeOutput)
-json_prompt_str = parser.format(code_parser_template)
-json_prompt_tmpl = PromptTemplate(json_prompt_str)
-output_pipeline = QueryPipeline(chain=[json_prompt_tmpl, llm])
-
-while (prompt := input("Enter a prompt (q to quit): ")) != "q":
+# Optionally, wrap the agent query in a function for easy access:
+def agent_query(prompt: str) -> dict:
     result = agent.query(prompt)
-    next_result = output_pipeline.run(response=result)
-    cleaned_json = ast.literal_eval(str(next_result).replace("assistant:", ""))
-
-    print("Output Generated")
-    print(cleaned_json["information"])
-
-    print("\n\nDescription:", cleaned_json["description"])
-
-    filename =cleaned_json["filename"]
-
+    # Optionally run further processing or query pipeline steps...
+    return result
