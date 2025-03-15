@@ -43,5 +43,5 @@ elif mode == "Git Analysis":
     end_date = st.text_input("End date (ISO format)", "")
     repo_url = st.text_input("Or enter repository URL", "")
     if st.button("Run Analysis"):
-        result = git_query(query, start_date, end_date, repo_path=repo_path)
+        result = git_query(query, start_date, end_date, repo_path=repo_path, repo_url=repo_url)
         st.write(result.get("response", "No response."))
