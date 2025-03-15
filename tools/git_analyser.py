@@ -15,7 +15,7 @@ def create_git_commit_index(repo_path: str, branch: str = "master", limit: int =
     git_index = VectorStoreIndex.from_documents(nodes, embed_model=embed_model)
     return git_index
 
-def git_query(query: str, start_date: str = None, end_date: str = None, repo_path: str = "./my_repo", branch: str = "master", limit: int = 1000, repo_url: str=None):
+def git_query(query: str, start_date: str = None, end_date: str = None, repo_path: str = "./my_repo", branch: str = "master", limit: int = 100, repo_url: str=None):
     """
     Query the Git commit index with optional time filters.
     This function builds the index on the fly (or you can persist it) and then runs a query.

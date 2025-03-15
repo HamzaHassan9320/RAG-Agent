@@ -5,7 +5,7 @@ import stat
 from datetime import datetime
 from llama_index.core.schema import TextNode
 
-def get_commit_history(repo_path: str, branch: str = "master", limit: int = 1000):
+def get_commit_history(repo_path: str, branch: str = "master", limit: int = 100):
     """
     Fetch commit history from a Git repository.
     Returns a list of commit dictionaries with commit hash, author, date, and message.
