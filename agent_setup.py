@@ -1,19 +1,15 @@
 # agent_setup.py
 from llama_index.llms.ollama import Ollama
 from llama_parse import LlamaParse
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, PromptTemplate
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
 from llama_index.core.embeddings import resolve_embed_model
 from llama_index.core.tools import QueryEngineTool, ToolMetadata
 from llama_index.core.agent import ReActAgent
-from pydantic import BaseModel
-from llama_index.core.output_parsers import PydanticOutputParser
-from llama_index.core.query_pipeline import QueryPipeline
-import ast
 from tools.code_reader import code_reader
 from tools.code_quality import code_quality_tool
 from tools.git_analyser import git_analyser_tool
 from tools.extractors import extract_docx, extract_html, extract_markdown
-from prompts import context, code_parser_template
+from prompts import context
 from dotenv import load_dotenv
 import re
 import json
