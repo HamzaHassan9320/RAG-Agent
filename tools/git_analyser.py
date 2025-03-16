@@ -21,8 +21,7 @@ def aggregate_commits(commit_docs):
         )
     return aggregated
 
-def git_query(query: str, start_date: str = None, end_date: str = None,
-              repo_path: str = "./my_repo", branch: str = None,
+def git_query(query: str, start_date: str = None, end_date: str = None, branch: str = None,
               limit: int = 100, repo_url: str = None):
     """
     Instead of building a vector index, this function extracts commit history,
@@ -61,14 +60,13 @@ def git_query(query: str, start_date: str = None, end_date: str = None,
         f"You are an assistant that summarizes git commit history and explains the code changes.\n"
         f"Query: {query}\n\n"
         f"Commit History:\n{aggregated_text}\n\n"
-        "Provide a clear, concise summary and commentary on these commits."
+        "Provide a clear, concise summary and commentary on these commits. **Note:** Commits that are dated earlier will be the first commits so go in a sequential structure from oldest to latest."
     )
     
     # Initialize the LLM (ensure it's configured to your provider)
     llm = Ollama(model="llama3.2:3b-instruct-q6_K", request_timeout=500)
     summary = llm.complete(prompt)
-    
-    return {"response": summary}
+    return {"response": summary.text.strip()}
 
 # Wrap as a FunctionTool for the agent
 git_analyser_tool = FunctionTool.from_defaults(

@@ -34,7 +34,7 @@ elif mode == "Git Analysis":
     repo_url = st.text_input("Or enter repository URL", "")
     branch = st.text_input("Enter branch (optional)", "")
     if st.button("Run Analysis"):
-        result = git_query(query, start_date, end_date, repo_path=repo_path, branch=branch, repo_url=repo_url)
+        result = git_query(query, start_date, end_date, branch=branch, repo_url=repo_url)
         st.write(result.get("response", "No response."))
 
 elif mode == "Agent Query":
@@ -42,5 +42,6 @@ elif mode == "Agent Query":
     user_prompt = st.text_area("Enter your query for the agent", "What are the key improvements in the latest commits?")
     if st.button("Submit Query"):
         result = agent_query(user_prompt)
+        agent_answer = result.response  
         st.write("Agent Response:")
-        st.write(result)
+        st.write(agent_answer)

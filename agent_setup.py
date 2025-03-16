@@ -15,6 +15,8 @@ from tools.git_analyser import git_analyser_tool
 from tools.extractors import extract_docx, extract_html, extract_markdown
 from prompts import context, code_parser_template
 from dotenv import load_dotenv
+import re
+import json
 
 load_dotenv()
 
@@ -48,23 +50,65 @@ tools = [
 
 from llama_index.core.agent.react.output_parser import ReActOutputParser
 
+class SimpleAgentResponse:
+    def __init__(self, text: str, is_done: bool = True):
+        self.text = text
+        self.is_done = is_done
+
+    def get_content(self):
+        return self.text
+
 class CustomReActOutputParser(ReActOutputParser):
     def parse(self, output: str, is_streaming: bool = False):
         try:
-            return super().parse(output, is_streaming)
+            # First, try to extract the tool output if present.
+            # Look for a pattern like "Observation: {json}" or "Observation:\n{...}"
+            obs_match = re.search(r"Observation:\s*(\{.*\})", output, re.DOTALL)
+            if obs_match:
+                # If we get JSON, try to load it
+                try:
+                    parsed_obs = json.loads(obs_match.group(1))
+                    # If the parsed output has a 'response', return that.
+                    if isinstance(parsed_obs, dict) and "response" in parsed_obs:
+                        response_text = parsed_obs["response"]
+                        return SimpleAgentResponse(response_text.strip())
+                except json.JSONDecodeError:
+                    # If it's not JSON, fallback to plain text extraction
+                    obs_text = obs_match.group(1)
+                    return SimpleAgentResponse(obs_text.strip())
+
+            # If no "Observation:" is found, check for a final answer by splitting by "Final Answer:"
+            final_match = re.search(r"Final Answer:\s*(.*)", output, re.DOTALL)
+            if final_match:
+                return SimpleAgentResponse(final_match.group(1).strip())
+
+            # If nothing special is found, fallback to the default parser
+            parsed = super().parse(output, is_streaming)
+            if isinstance(parsed, dict) and "response" in parsed:
+                resp = parsed["response"]
+                if hasattr(resp, "text"):
+                    final_text = resp.text.strip()
+                    return SimpleAgentResponse(final_text)
+                elif isinstance(resp, str):
+                    return SimpleAgentResponse(resp.strip())
+            if isinstance(parsed, str):
+                return SimpleAgentResponse(parsed.strip())
+            if hasattr(parsed, "get_content") and hasattr(parsed, "is_done"):
+                return parsed
+            return parsed
+
         except ValueError as e:
             if "Action: None" in output:
-                return {
-                    "reasoning": "The agent concluded no action was needed.",
-                    "response": output.split("Observation:")[1].strip() if "Observation:" in output else "No additional observations provided.",
-                }
+                final_text = output.split("Observation:")[1].strip() if "Observation:" in output else "No additional observations provided."
+                return SimpleAgentResponse(final_text)
             raise e
 
-code_llm = Ollama(model="llama3.2:3b-instruct-q6_K", request_timeout=500)
-agent = ReActAgent.from_tools(tools, llm=code_llm, verbose=True, output_parser=CustomReActOutputParser(), context=context)
+code_llm = Ollama(model="llama3.2:3b-instruct-q6_K", request_timeout=1000, temperature=0)
+agent = ReActAgent.from_tools(tools, llm=code_llm, verbose=True, output_parser=CustomReActOutputParser(), context=context, temperature=0)
 
 # Optionally, wrap the agent query in a function for easy access:
 def agent_query(prompt: str) -> dict:
     result = agent.query(prompt)
-    # Optionally run further processing or query pipeline steps...
     return result
+
+
