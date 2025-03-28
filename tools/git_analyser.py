@@ -11,6 +11,7 @@ import os
 class GitCommitVectorStore:
     def __init__(self):
         self.embed_model = resolve_embed_model("local:BAAI/bge-m3")
+        self.llm = Ollama(model="llama3.2:3b-instruct-q6_K", request_timeout=500)
         self.vector_stores = {}  # Map of repo_url -> VectorStoreIndex
         
     def process_repo(self, repo_url: str, branch: str = None, limit: int = 100):
@@ -73,9 +74,10 @@ class GitCommitVectorStore:
                 date_filter["$lte"] = end_date
             metadata_filters["date"] = date_filter
             
-        # Query the vector store
+        # Query the vector store with local LLM
         query_engine = vector_store.as_query_engine(
-            metadata_filters=metadata_filters if metadata_filters else None
+            metadata_filters=metadata_filters if metadata_filters else None,
+            llm=self.llm
         )
         response = query_engine.query(query)
         

@@ -4,6 +4,7 @@ from typing import List, Dict, Optional
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
+import json
 
 load_dotenv()
 
@@ -67,8 +68,12 @@ class Database:
                 VALUES (%s, %s, %s, %s)
                 RETURNING id
                 """,
-                (session_id, role, content, metadata or {})
-            )
+                (
+                    session_id,
+                    role,
+                    content,
+                    json.dumps(metadata or {})  # Convert dict to JSON string
+                ))
             message_id = cur.fetchone()[0]
             
             # Update session last_updated_at

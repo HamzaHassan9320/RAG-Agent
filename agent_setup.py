@@ -17,7 +17,7 @@ import json
 load_dotenv()
 
 llm = Ollama(model="llama3.2:3b-instruct-q6_K", request_timeout=500)
-pdf_parser = LlamaParse(result_type= "text")
+pdf_parser = LlamaParse(result_type="text")
 
 file_extractor = {
     ".pdf": pdf_parser,
@@ -28,7 +28,10 @@ file_extractor = {
 
 documents = SimpleDirectoryReader("./data", file_extractor=file_extractor).load_data()
 embed_model = resolve_embed_model("local:BAAI/bge-m3")
-vector_index = VectorStoreIndex.from_documents(documents, embed_model=embed_model)
+vector_index = VectorStoreIndex.from_documents(
+    documents,
+    embed_model=embed_model
+)
 query_engine = vector_index.as_query_engine(llm=llm)
 
 tools = [

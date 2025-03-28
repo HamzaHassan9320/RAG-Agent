@@ -3,12 +3,14 @@
 from llama_index.core.tools import FunctionTool
 from llama_index.core import Document, VectorStoreIndex
 from llama_index.core.embeddings import resolve_embed_model
+from llama_index.llms.ollama import Ollama
 from tools.code_explainer import explain_code
 import os
 
 class CodeVectorStore:
     def __init__(self):
         self.embed_model = resolve_embed_model("local:BAAI/bge-m3")
+        self.llm = Ollama(model="llama3.2:3b-instruct-q6_K", request_timeout=500)
         self.vector_stores = {}  # Map of filename -> VectorStoreIndex
         
     def process_file(self, file_path: str):
@@ -50,7 +52,7 @@ class CodeVectorStore:
             return None
             
         vector_store = self.vector_stores[file_path]
-        query_engine = vector_store.as_query_engine()
+        query_engine = vector_store.as_query_engine(llm=self.llm)
         response = query_engine.query(query)
         
         return response.response
