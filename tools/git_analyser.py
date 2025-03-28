@@ -3,78 +3,113 @@
 from datetime import datetime
 from llama_index.llms.ollama import Ollama
 from llama_index.core.tools import FunctionTool
+from llama_index.core import Document, VectorStoreIndex
+from llama_index.core.embeddings import resolve_embed_model
 from tools.git_history_loader import extract_commit_history, clone_repo
+import os
 
-def aggregate_commits(commit_docs):
-    """
-    Aggregate commit information into a single formatted string.
-    """
-    aggregated = ""
-    for commit in commit_docs:
-        aggregated += (
-            f"Commit Hash: {commit['commit_hash']}\n"
-            f"Author: {commit['author']}\n"
-            f"Date: {commit['date']}\n"
-            f"Message: {commit['message']}\n"
-            f"Diff:\n{commit['diff']}\n"
-            f"{'-'*50}\n"
+class GitCommitVectorStore:
+    def __init__(self):
+        self.embed_model = resolve_embed_model("local:BAAI/bge-m3")
+        self.vector_stores = {}  # Map of repo_url -> VectorStoreIndex
+        
+    def process_repo(self, repo_url: str, branch: str = None, limit: int = 100):
+        """
+        Creates or updates vector embeddings for a repository's commits
+        """
+        # Clone repo if needed
+        repo_path = clone_repo(repo_url, "./temp_repo")
+        
+        # Extract commit history
+        commit_docs = extract_commit_history(repo_path, branch, limit)
+        
+        # Convert commits to Documents for vector store
+        documents = []
+        for commit in commit_docs:
+            # Create rich metadata for better retrieval
+            metadata = {
+                "commit_hash": commit["commit_hash"],
+                "author": commit["author"],
+                "date": commit["date"],
+                "type": "git_commit"
+            }
+            
+            # Combine commit info into a searchable text
+            text = f"""
+            Commit: {commit['commit_hash']}
+            Author: {commit['author']}
+            Date: {commit['date']}
+            Message: {commit['message']}
+            
+            Changes:
+            {commit['diff']}
+            """
+            
+            doc = Document(text=text, metadata=metadata)
+            documents.append(doc)
+        
+        # Create or update vector store for this repo
+        self.vector_stores[repo_url] = VectorStoreIndex.from_documents(
+            documents,
+            embed_model=self.embed_model
         )
-    return aggregated
+        
+    def query_commits(self, repo_url: str, query: str, start_date: str = None, end_date: str = None):
+        """
+        Query the vector store for relevant commits
+        """
+        if repo_url not in self.vector_stores:
+            self.process_repo(repo_url)
+            
+        vector_store = self.vector_stores[repo_url]
+        
+        # Create metadata filters for date range if specified
+        metadata_filters = {}
+        if start_date or end_date:
+            date_filter = {}
+            if start_date:
+                date_filter["$gte"] = start_date
+            if end_date:
+                date_filter["$lte"] = end_date
+            metadata_filters["date"] = date_filter
+            
+        # Query the vector store
+        query_engine = vector_store.as_query_engine(
+            metadata_filters=metadata_filters if metadata_filters else None
+        )
+        response = query_engine.query(query)
+        
+        return response.response
+
+# Global vector store instance
+git_vector_store = GitCommitVectorStore()
 
 def git_query(query: str, start_date: str = None, end_date: str = None, branch: str = None,
               limit: int = 100, repo_url: str = None):
     """
-    Instead of building a vector index, this function extracts commit history,
-    aggregates it, and uses an LLM to provide a summary explanation of the commits.
+    Query git commit history using vector embeddings for more accurate retrieval
     """
-    # If a repository URL is provided, clone it.
-    if repo_url and repo_url.strip():
-        print(f"Repository URL provided: {repo_url}")
-        repo_path = clone_repo(repo_url, "./temp_repo")
-        print(f"Cloned repository to: {repo_path}")
-    
-    # Extract commit history (including diffs)
-    commit_docs = extract_commit_history(repo_path, branch, limit)
-    
-    # Filter commits by start_date and end_date if provided
-    if start_date or end_date:
-        filtered_docs = []
-        for commit in commit_docs:
-            commit_date = datetime.fromisoformat(commit['date'])
-            if start_date:
-                start = datetime.fromisoformat(start_date)
-                if commit_date < start:
-                    continue
-            if end_date:
-                end = datetime.fromisoformat(end_date)
-                if commit_date > end:
-                    continue
-            filtered_docs.append(commit)
-        commit_docs = filtered_docs
-
-    # Aggregate the commit details into one text block
-    aggregated_text = aggregate_commits(commit_docs)
-    
-    # Create an LLM prompt that asks for a summary explanation of the commit history
-    prompt = (
-        f"You are an assistant that summarizes git commit history and explains the code changes.\n"
-        f"Query: {query}\n\n"
-        f"Commit History:\n{aggregated_text}\n\n"
-        "Provide a clear, concise summary and commentary on these commits. **Note:** Commits that are dated earlier will be the first commits so go in a sequential structure from oldest to latest."
-    )
-    
-    # Initialize the LLM (ensure it's configured to your provider)
-    llm = Ollama(model="llama3.2:3b-instruct-q6_K", request_timeout=500)
-    summary = llm.complete(prompt)
-    return {"response": summary.text.strip()}
+    if not repo_url:
+        return {"response": "Please provide a repository URL"}
+        
+    try:
+        response = git_vector_store.query_commits(
+            repo_url=repo_url,
+            query=query,
+            start_date=start_date,
+            end_date=end_date
+        )
+        return {"response": response}
+    except Exception as e:
+        return {"response": f"Error analyzing repository: {str(e)}"}
 
 # Wrap as a FunctionTool for the agent
 git_analyser_tool = FunctionTool.from_defaults(
     fn=git_query,
     name="GitAnalyser",
     description=(
-        "Analyzes Git commit history and provides a summary explanation of the changes. "
-        "Example query: 'Summarize commits in the past 6 months.' "
-        "Optional: Provide start and end dates in ISO format, or a repository URL."
+        "Analyzes Git commit history using vector embeddings for semantic search. "
+        "Example query: 'Find commits related to performance improvements' "
+        "Required: Provide repository URL. Optional: Provide start and end dates in ISO format."
     )
 )

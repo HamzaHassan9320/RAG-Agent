@@ -8,7 +8,11 @@
   Ingests documents (PDFs, code files) from a local directory using custom file extractors.
 
 - **Git Commit Analysis:**  
-  Uses GitPython to load commit history from a specified Git repository, converts commits into indexed nodes with metadata, and supports time-aware retrieval.
+  Uses GitPython to load commit history from a specified Git repository, creates vector embeddings for semantic search, and supports time-aware retrieval. Features include:
+  - Semantic search across commit messages and diffs
+  - Efficient vector-based retrieval
+  - Metadata filtering by date ranges
+  - Persistent vector store for improved performance
 
 - **ReAct Agent Integration:**  
   Combines LlamaIndex with a ReAct agent to process queries, perform reasoning, and invoke the appropriate tools automatically.

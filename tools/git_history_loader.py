@@ -3,7 +3,6 @@
 import os
 from git import Repo
 import shutil
-import stat
 from datetime import datetime
 
 def extract_commit_history(repo_path: str, branch: str = "master", limit: int = 100):
