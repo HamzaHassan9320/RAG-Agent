@@ -61,7 +61,16 @@ class CodeVectorStore:
 code_vector_store = CodeVectorStore()
 
 def code_reader_func(file_name: str, query: str = None):
-    path = os.path.join("data", file_name)
+    base_path = "data"
+    path = os.path.join(base_path, file_name)
+
+    # Fallback to temp_code.py if file doesn't exist
+    if not os.path.exists(path):
+        fallback_file = os.path.join(base_path, "temp_code.py")
+        if os.path.exists(fallback_file):
+            path = fallback_file
+        else:
+            return {"error": f"Neither {file_name} nor temp_code.py found in {base_path}"}
     try:
         # Process file and get content
         content = code_vector_store.process_file(path)

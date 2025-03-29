@@ -11,7 +11,7 @@ import torch
 st.set_page_config(page_title="RAG-Agent Chat", page_icon="🤖", layout="wide")
 
 # -------------------------
-# Optional Custom CSS for Sidebar (without overriding colors)
+# Custom CSS for Sidebar 
 # -------------------------
 st.markdown("""
     <style>
@@ -44,6 +44,31 @@ st.markdown("""
     .session-item.active {
         background-color: #262730;
         font-weight: 600;
+    }
+
+    /* Minimalistic File Uploader styles */
+    .input-row {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        margin-top: 1rem;
+    }
+    [data-testid="stFileUpload"] > label {
+        display: inline-block;
+        width: 40px;            /* make it a small square */
+        height: 40px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        overflow: hidden;
+        text-align: center;
+        line-height: 40px;      /* vertically center text/icons */
+        background-color: #f0f0f0;
+        cursor: pointer;
+        margin-left: 0.5rem;    /* space between chat input and upload icon */
+    }
+    /* Hide the default text in the uploader */
+    [data-testid="stFileUpload"] > label > div {
+        display: none;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -102,6 +127,23 @@ if "session_id" in query_params:
 # MAIN CHAT AREA
 # -------------------------
 st.title("🤖 RAG-Agent Chat")
+
+uploaded_file = st.file_uploader(
+    "",  # no label text
+    type=["py", "txt", "doc", "docx", "pdf", "csv", "json"],
+    label_visibility="collapsed"
+)
+
+st.markdown("</div>", unsafe_allow_html=True)
+
+# If a file was uploaded, save it as "temp_code.py" or a chosen name
+if uploaded_file is not None:
+    file_path = os.path.join("data", "temp_code.py")
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    with open(file_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    st.success(f"File {uploaded_file.name} uploaded successfully!")
 
 if st.session_state.current_session_id:
     messages = db.get_session_messages(st.session_state.current_session_id)

@@ -13,6 +13,7 @@ from prompts import context
 from dotenv import load_dotenv
 import re
 import json
+from types import SimpleNamespace
 
 load_dotenv()
 
@@ -107,7 +108,12 @@ agent = ReActAgent.from_tools(tools, llm=code_llm, verbose=True, output_parser=C
 
 # Optionally, wrap the agent query in a function for easy access:
 def agent_query(prompt: str) -> dict:
-    result = agent.query(prompt)
+    try:
+        result = agent.query(prompt)
+    except ValueError as e:
+        if "Could not parse output" in str(e):
+            return SimpleNamespace(response=str(e))
+        raise
     return result
 
 
