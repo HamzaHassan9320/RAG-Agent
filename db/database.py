@@ -88,7 +88,13 @@ class Database:
             
             self.conn.commit()
             return message_id
-            
+
+    def delete_all_sessions(self):
+        cur = self.conn.cursor()
+        cur.execute("TRUNCATE TABLE chat_sessions RESTART IDENTITY CASCADE;")
+        cur.execute("TRUNCATE TABLE chat_messages RESTART IDENTITY CASCADE;")
+        self.conn.commit()
+
     def delete_session(self, session_id: int) -> bool:
         """Delete a chat session and all its messages"""
         try:

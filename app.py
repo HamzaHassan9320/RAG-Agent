@@ -1,8 +1,12 @@
+import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
 import streamlit as st
 from agent_setup import agent_query
 from db.database import db
 from datetime import datetime
 import pytz
+import torch
 
 st.set_page_config(page_title="RAG-Agent Chat", page_icon="🤖", layout="wide")
 
@@ -27,14 +31,18 @@ st.markdown("""
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
-        text-decoration: none;
+        text-decoration: none !important;
         border-radius: 4px;
+            
+        background-color: #262730;
+        color: #FFFFFF !important;
+        font-weight: 600;
     }
     .session-item:hover {
-        background-color: #E0E0E0;
+        background-color: #262730;
     }
     .session-item.active {
-        background-color: #D0D0D0;
+        background-color: #262730;
         font-weight: 600;
     }
     </style>
@@ -55,7 +63,13 @@ with st.sidebar:
     # "New Chat" button
     if st.button("New Chat"):
         st.session_state.current_session_id = None
-        st.set_query_params()   
+        st.query_params.clear()  
+        st.rerun()
+
+    if st.button("Clear All Sessions"):
+        db.delete_all_sessions()  
+        st.session_state.current_session_id = None
+        st.query_params.clear()  
         st.rerun()
 
     st.markdown("---")
@@ -65,7 +79,7 @@ with st.sidebar:
     session_list_html = "<div class='session-list'>"
     for session in sessions:
         active_class = "active" if str(session['id']) == str(st.session_state.current_session_id) else ""
-        session_list_html += f"<a class='session-item {active_class}' title='{session['name']}' href='?session_id={session['id']}'>{session['name']}</a>"
+        session_list_html += f"<a class='session-item {active_class}' title='{session['name']}' href='?session_id={session['id']}'  target='_self'>{session['name']}</a>"
     session_list_html += "</div>"
     st.markdown(session_list_html, unsafe_allow_html=True)
 
@@ -74,7 +88,15 @@ with st.sidebar:
 # -------------------------
 query_params = st.query_params
 if "session_id" in query_params:
-    st.session_state.current_session_id = int(query_params["session_id"][0])
+    sid = int(query_params["session_id"][0])
+    # Check if sid actually exists in chat_sessions:
+    valid_ids = [s['id'] for s in db.get_sessions()]
+    if sid in valid_ids:
+        st.session_state.current_session_id = sid
+    else:
+        st.session_state.current_session_id = None
+        st.query_params.clear()  
+        st.rerun()
 
 # -------------------------
 # MAIN CHAT AREA
@@ -107,12 +129,27 @@ if user_input:
     with st.chat_message("user"):
         st.write(user_input)
 
-    # Query the agent and display the response
+    # Get the current chat history from the database
+    messages = db.get_session_messages(st.session_state.current_session_id)
+    
+    # Build conversation history string to prepend to the prompt
+    conversation_history = ""
+    for msg in messages:
+        conversation_history += f"{msg['role']}: {msg['content']}\n"
+    full_prompt = conversation_history + "User: " + user_input
+
+    # Query the agent with the full prompt
     with st.spinner("🤖 Thinking..."):
-        result = agent_query(user_input)
+        result = agent_query(full_prompt)
+    
+    torch.cuda.empty_cache()
+
     db.add_message(st.session_state.current_session_id, "assistant", result.response)
     with st.chat_message("assistant"):
-        st.write(result.response)
+        if isinstance(result.response, dict):
+            st.write(result.response["response"])
+        else:
+            st.write(result.response)
 
     # Rerun to update the conversation
     st.rerun()
