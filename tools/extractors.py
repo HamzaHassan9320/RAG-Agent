@@ -10,7 +10,7 @@ def extract_docx(file_path: str) -> str:
 def extract_html(file_path: str) -> str:
     with open(file_path, "r", encoding="utf-8") as f:
         soup = BeautifulSoup(f, "html.parser")
-    return soup.get_text(seperation="\n")
+    return soup.get_text(separator="\n")
 
 def extract_markdown(file_path: str) -> str:
     with open(file_path, "r", encoding="utf-8") as f:
