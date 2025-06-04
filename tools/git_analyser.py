@@ -55,12 +55,27 @@ class GitCommitVectorStore:
             embed_model=self.embed_model
         )
         
-    def query_commits(self, repo_url: str, query: str, start_date: str = None, end_date: str = None):
-        """
-        Query the vector store for relevant commits
+    def query_commits(self, repo_url: str, query: str, start_date: str = None,
+                      end_date: str = None, limit: int = 100):
+        """Query the vector store for relevant commits.
+
+        Parameters
+        ----------
+        repo_url : str
+            URL of the repository to query.
+        query : str
+            Natural language description of the commits to search for.
+        start_date : str, optional
+            ISO formatted date string to filter commits starting from this
+            date.
+        end_date : str, optional
+            ISO formatted date string to filter commits up to this date.
+        limit : int, default 100
+            Number of commits to load if the repository hasn't been processed
+            yet.
         """
         if repo_url not in self.vector_stores:
-            self.process_repo(repo_url)
+            self.process_repo(repo_url, limit=limit)
             
         vector_store = self.vector_stores[repo_url]
         
@@ -88,8 +103,22 @@ git_vector_store = GitCommitVectorStore()
 
 def git_query(query: str, start_date: str = None, end_date: str = None, branch: str = None,
               limit: int = 100, repo_url: str = None):
-    """
-    Query git commit history using vector embeddings for more accurate retrieval
+    """Query git commit history using vector embeddings.
+
+    Parameters
+    ----------
+    query : str
+        Natural language question describing the commits to search for.
+    start_date : str, optional
+        ISO formatted date to filter commits starting from this date.
+    end_date : str, optional
+        ISO formatted date to filter commits up to this date.
+    branch : str, optional
+        Branch to analyse. Currently unused.
+    limit : int, default 100
+        Number of commits to load when processing the repository.
+    repo_url : str, optional
+        URL of the repository to analyse.
     """
     if not repo_url:
         return {"response": "Please provide a repository URL"}
@@ -99,7 +128,8 @@ def git_query(query: str, start_date: str = None, end_date: str = None, branch: 
             repo_url=repo_url,
             query=query,
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
+            limit=limit
         )
         return {"response": response}
     except Exception as e:
